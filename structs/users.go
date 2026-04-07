@@ -5,7 +5,7 @@ import "github.com/google/uuid"
 type Users struct {
 	ID       uuid.UUID `json:"id"`
 	Username string    `json:"username"`
-	Password string    `json:"password"`
+	Password string    `json:"-"`
 	Role     string    `json:"role"`
 	IsActive bool      `json:"is_active"`
 }
@@ -19,6 +19,12 @@ type Customer struct {
 
 type Admin struct {
 	AdminID uuid.UUID `json:"admin_id"`
+	UserID		uuid.UUID `json:"user_id"`
+	User	   *Users	 `json:"user"`
+}
+
+type Doctor struct {
+	DoctorID uuid.UUID `json:"doctor_id"`
 	UserID		uuid.UUID `json:"user_id"`
 	User	   *Users	 `json:"user"`
 }

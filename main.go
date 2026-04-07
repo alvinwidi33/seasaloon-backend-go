@@ -33,8 +33,8 @@ func main() {
 	protected := router.Group("/api")
 	protected.Use(middleware.AuthMiddleware()) 
 	{
-		protected.GET("/reservation", middleware.AuthMiddleware("Customer", "Admin", "Pharmacist"), controllers.GetAllReservation)
-		protected.GET("/reservation/:id", middleware.AuthMiddleware("Customer", "Admin", "Pharmacist"), controllers.GetAllReservationByCustomerID)
+		protected.GET("/reservation", middleware.AuthMiddleware("Customer", "Admin", "Doctor"), controllers.GetAllReservation)
+		protected.GET("/reservation/:id", middleware.AuthMiddleware("Customer", "Admin", "Doctor"), controllers.GetAllReservationByCustomerID)
 
 		protected.POST("/reservation", middleware.AuthMiddleware("Customer"), controllers.InsertReservation)
 		protected.PATCH("/reservation/:id/cancel", middleware.AuthMiddleware("Customer"), controllers.CancelReservation)
@@ -47,13 +47,13 @@ func main() {
         protected.GET("/saloon/:id", middleware.AuthMiddleware("Admin","Customer"), controllers.GetSaloonById)
 
 		protected.GET("/users", middleware.AuthMiddleware("Admin"), controllers.GetAllCustomer)
-		protected.PATCH("/users/:id/active", middleware.AuthMiddleware("Admin"), controllers.ActivateUser)
 		protected.PATCH("/users/:id/member", middleware.AuthMiddleware("Admin"), controllers.SetCustomerMembership)
         protected.POST("/admin", middleware.AuthMiddleware("Admin"), controllers.RegisterAdmin(DB))
         protected.GET("/admin/saloon", middleware.AuthMiddleware("Admin"), controllers.GetAllSaloon)
 	}
 	router.POST("/api/login", controllers.Login(DB))
 	router.POST("/api/register", controllers.Register(DB))
+	router.GET("/api/activate", controllers.ActivateUser(DB))
 
 	port := os.Getenv("PORT")
 	if port == "" {

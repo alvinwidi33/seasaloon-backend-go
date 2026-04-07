@@ -6,7 +6,8 @@ import (
 	"os"
 	"seasaloon-backend-go/structs"
 	"time"
-
+	"crypto/rand"
+	"encoding/hex"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -24,7 +25,11 @@ func GenerateToken(userID uuid.UUID, role string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(jwtSecret))
 }
-
+func GenerateActivationToken() (string, error) {
+	bytes := make([]byte, 32)
+	_, err := rand.Read(bytes)
+	return hex.EncodeToString(bytes), err
+}
 
 func ParseToken(tokenStr string) (uuid.UUID, string, error) {
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
@@ -54,26 +59,26 @@ func ParseToken(tokenStr string) (uuid.UUID, string, error) {
 	return uuid.UUID{}, "", jwt.ErrSignatureInvalid
 }
 
-func RegisterUser(db *sql.DB, username, password string) error {
+func RegisterUser(db *sql.DB, username, password string) (string, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	newID := uuid.New()
 
 	tx, err := db.Begin()
 	if err != nil {
-		return err
+		return "", err
 	}
-	defer tx.Rollback() 
+	defer tx.Rollback()
 
 	_, err = tx.Exec(`
 		INSERT INTO users (id, username, password, role, is_active) 
 		VALUES ($1, $2, $3, $4, $5)
-	`, newID, username, string(hashedPassword), "Customer", true)
+	`, newID, username, string(hashedPassword), "Customer", false)
 	if err != nil {
-		return errors.New("failed to register user: " + err.Error())
+		return "", err
 	}
 
 	_, err = tx.Exec(`
@@ -81,15 +86,27 @@ func RegisterUser(db *sql.DB, username, password string) error {
 		VALUES ($1, $2, $3)
 	`, uuid.New(), newID, "Not Member")
 	if err != nil {
-		return errors.New("failed to create customer: " + err.Error())
+		return "", err
 	}
 
-	err = tx.Commit()
+	token, err := GenerateActivationToken()
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
+	_, err = tx.Exec(`
+		INSERT INTO user_activation (id, user_id, token, expired_at)
+		VALUES ($1, $2, $3, $4)
+	`, uuid.New(), newID, token, time.Now().Add(24*time.Hour))
+	if err != nil {
+		return "", err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return "", err
+	}
+
+	return token, nil
 }
 func RegisterAdmin(db *sql.DB, username, password string) error {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -128,33 +145,71 @@ func RegisterAdmin(db *sql.DB, username, password string) error {
 
 	return nil
 }
-// Login User
-func LoginUser(db *sql.DB, username, password string) (string, error) {
+
+func RegisterDoctor(db *sql.DB, username, password string) error {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	newID := uuid.New()
+
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() 
+
+	_, err = tx.Exec(`
+		INSERT INTO users (id, username, password, role, is_active) 
+		VALUES ($1, $2, $3, $4, $5)
+	`, newID, username, string(hashedPassword), "Doctor", true)
+	if err != nil {
+		return errors.New("failed to register doctor: " + err.Error())
+	}
+
+	_, err = tx.Exec(`
+		INSERT INTO doctor (doctor_id, user_id) 
+		VALUES ($1, $2)
+	`, uuid.New(), newID)
+	if err != nil {
+		return errors.New("failed to create doctor: " + err.Error())
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+func LoginUser(db *sql.DB, username, password string) (*structs.Users, string, error) {
 	var user structs.Users
 
-	err := db.QueryRow("SELECT id, password, is_active, role FROM users WHERE username = $1", username).
-		Scan(&user.ID, &user.Password, &user.IsActive, &user.Role)
+	err := db.QueryRow(`
+		SELECT id, username, password, role, is_active
+		FROM users WHERE username = $1
+	`, username).Scan(&user.ID, &user.Username, &user.Password, &user.Role, &user.IsActive)
+
 	if err != nil {
-		return "", errors.New("invalid username or password")
+		return nil, "", errors.New("invalid credentials")
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+		return nil, "", errors.New("invalid credentials")
 	}
 
 	if !user.IsActive {
-		return "", errors.New("user is no longer active")
-	}
-
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
-	if err != nil {
-		return "", errors.New("invalid username or password")
+		return nil, "", errors.New("account not activated")
 	}
 
 	token, err := GenerateToken(user.ID, user.Role)
 	if err != nil {
-		return "", err
+		return nil, "", err
 	}
 
-	return token, nil
+	return &user, token, nil
 }
-
 
 func ActivateUser(db *sql.DB, userID uuid.UUID) error {
 	var currentStatus bool
@@ -213,16 +268,17 @@ func SetCustomerMembership(db *sql.DB, userID uuid.UUID) error {
 }
 
 
-func GetAllCustomers(db *sql.DB) (result []structs.Customer, err error) {
+func GetAllCustomers(db *sql.DB, limit, offset int) (result []structs.Customer, err error) {
 	sql := `
         SELECT  
 			c.customer_id, c.status , u.id, u.username,
 			u.role, u.is_active
 		FROM customer c
 		JOIN users u ON c.user_id = u.id
+		LIMIT $1 OFFSET $2
     `
 
-	rows, err := db.Query(sql)
+	rows, err := db.Query(sql, limit, offset)
 	if err != nil {
 		return
 	}

@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"log"
 	"net/http"
 	connection "seasaloon-backend-go/database/connections"
 	"seasaloon-backend-go/repository"
@@ -50,7 +49,7 @@ func InsertReservation(r *gin.Context) {
 		return
     }
 
-    r.JSON(http.StatusOK, reservation)
+    helpers.Success(r, http.StatusOK, "Reservation created successfully", gin.H{})
 }
 
 func CancelReservation(r *gin.Context) {
@@ -58,8 +57,7 @@ func CancelReservation(r *gin.Context) {
 
    id, err := strconv.Atoi(r.Param("id"))
    if err != nil || id < 0 { 
-       log.Println("Invalid reservation ID:", id, "Error:", err)
-       r.JSON(http.StatusBadRequest, gin.H{"error": "Invalid reservation ID"})
+	   helpers.Error(r, http.StatusBadRequest, "Invalid reservation ID")
        return
    }
 
@@ -67,13 +65,11 @@ func CancelReservation(r *gin.Context) {
 
    err = repository.CancelReservation(connection.DBConnections, reservation)
    if err != nil {
-       log.Println("Error updating reservation:", err)
-       r.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	   helpers.Error(r, http.StatusInternalServerError, err.Error())
        return
    }
 
-   log.Println("Successfully cancel as done:", reservation)
-   r.JSON(http.StatusOK, reservation)
+   helpers.Success(r, http.StatusOK, "Reservation cancel successfully", gin.H{})
 }
 
 func DoneReservation(r *gin.Context) {
@@ -82,28 +78,23 @@ func DoneReservation(r *gin.Context) {
 
     id, err := strconv.Atoi(r.Param("id"))
     if err != nil || id < 0 {
-        log.Println("Invalid reservation ID:", id, "Error:", err)
-        r.JSON(http.StatusBadRequest, gin.H{"error": "Invalid reservation ID"})
+		helpers.Error(r, http.StatusBadRequest, "Invalid reservation ID")
         return
     }
 
     err = r.BindJSON(&reservation)
     if err != nil {
-        log.Println("JSON Binding Error:", err)
-        r.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON format"})
+        helpers.Error(r, http.StatusBadRequest, "Invalid JSON Format")
         return
     }
     reservation.ID = id
 
     err = repository.DoneReservation(connection.DBConnections, reservation)
     if err != nil {
-        log.Println("Error updating reservation:", err)
-        r.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		helpers.Error(r, http.StatusBadRequest, err.Error())
         return
     }
-
-    log.Println("Successfully marked reservation as done, ID:", id)
-    r.JSON(http.StatusOK, gin.H{"message": "Reservation marked as done", "id": id, "feedback": reservation.Feedback})
+	helpers.Success(r, http.StatusOK, "Reservation done successfully", gin.H{})
 }
 
 
