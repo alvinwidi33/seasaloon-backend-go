@@ -4,8 +4,9 @@ import (
 	"database/sql"
 	"net/http"
 	connection "seasaloon-backend-go/database/connections"
+	"seasaloon-backend-go/helpers"
 	"seasaloon-backend-go/repository"
-	"seasaloon-backend-go/structs"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -26,101 +27,132 @@ func Register(db *sql.DB) gin.HandlerFunc {
 		var req RegisterRequest
 
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			helpers.Error(c, http.StatusBadRequest, "invalid request")
 			return
 		}
 
-		err := repository.RegisterUser(db, req.Username, req.Password)
+		token, err := repository.RegisterUser(db, req.Username, req.Password)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			helpers.Error(c, http.StatusInternalServerError, err.Error())
 			return
 		}
 
-		c.JSON(http.StatusCreated, gin.H{"message": "User registered successfully"})
+		activationLink := "http://localhost:8080/activate?token=" + token
+
+		helpers.Success(c, http.StatusCreated, "User registered successfully", gin.H{
+			"activation_link": activationLink,
+		})
 	}
 }
 func RegisterAdmin(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req RegisterRequest
 
-		// Validasi input JSON
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			helpers.Error(c, http.StatusBadRequest, "invalid request")
 			return
 		}
 
-		// Call repository untuk register user
 		err := repository.RegisterAdmin(db, req.Username, req.Password)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			helpers.Error(c, http.StatusInternalServerError, err.Error())
 			return
 		}
 
-		c.JSON(http.StatusCreated, gin.H{"message": "Admin registered successfully"})
+	helpers.Success(c, http.StatusCreated, "Admin registered successfully", gin.H{})	
 	}
 }
+
 func Login(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req LoginRequest
 
-		// Validasi input JSON
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			helpers.Error(c, http.StatusBadRequest, "invalid request")
 			return
 		}
 
-		token, err := repository.LoginUser(db, req.Username, req.Password)
+		user, token, err := repository.LoginUser(db, req.Username, req.Password)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			helpers.Error(c, http.StatusUnauthorized, err.Error())
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"token": token})
+		helpers.Success(c, http.StatusOK, "Login successfully", helpers.LoginResponse{
+			Token: token,
+			User:  user,
+		})
 	}
 }
-func ActivateUser(u *gin.Context) {
-    var user structs.Users
-    id := u.Param("id")
+func ActivateUser(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		token := c.Query("token")
 
-    userID, err := uuid.Parse(id)
-    err = repository.ActivateUser(connection.DBConnections, userID)
-    if err != nil {
-       panic(err)
-    }
+		var userID uuid.UUID
 
-    u.JSON(http.StatusOK, user)
+		err := db.QueryRow(`
+			SELECT user_id FROM user_activation
+			WHERE token = $1 AND expired_at > NOW()
+		`, token).Scan(&userID)
+
+		if err != nil {
+			helpers.Error(c, 400, "invalid or expired token")
+			return
+		}
+
+		_, err = db.Exec(`
+			UPDATE users SET is_active = true WHERE id = $1
+		`, userID)
+
+		if err != nil {
+			helpers.Error(c, 500, "failed to activate user")
+			return
+		}
+		_, _ = db.Exec(`
+			DELETE FROM user_activation WHERE user_id = $1
+		`, userID)
+
+		helpers.Success[any](c, 200, "account activated", nil)
+	}
 }
-
 
 func SetCustomerMembership(c *gin.Context) {
-    var customer structs.Customer
-    id := c.Param("id")
+	id := c.Param("id")
 
-    userID, err := uuid.Parse(id)
-    err = repository.SetCustomerMembership(connection.DBConnections, userID)
-    if err != nil {
-       panic(err)
-    }
+	userID, err := uuid.Parse(id)
+	if err != nil {
+		helpers.Error(c, 400, "invalid user id")
+		return
+	}
 
-    c.JSON(http.StatusOK, customer)
+	err = repository.SetCustomerMembership(connection.DBConnections, userID)
+	if err != nil {
+		helpers.Error(c, 500, "failed to set customer membership")
+		return
+	}
+
+	helpers.Success[any](c, 200, "customer membership updated", nil)
 }
 
-func GetAllCustomer(s *gin.Context) {
-    var (
-       result gin.H
-    )
+func GetAllCustomer(c *gin.Context) {
+	limitStr := c.DefaultQuery("limit", "10")
+	offsetStr := c.DefaultQuery("offset", "0")
 
-    saloon, err := repository.GetAllCustomers(connection.DBConnections)
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		limit = 10
+	}
 
-    if err != nil {
-       result = gin.H{
-          "result": err.Error(),
-       }
-    } else {
-       result = gin.H{
-          "result": saloon,
-       }
-    }
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil {
+		offset = 0
+	}
 
-    s.JSON(http.StatusOK, result)
+	customers, err := repository.GetAllCustomers(connection.DBConnections, limit, offset)
+	if err != nil {
+		helpers.Error(c, 500, "failed to get customers")
+		return
+	}
+
+	helpers.Success(c, http.StatusOK, "success get customers", customers)
 }

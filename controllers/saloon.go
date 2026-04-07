@@ -63,15 +63,15 @@ func InsertSaloon(s *gin.Context) {
 
     err := s.BindJSON(&saloon)
     if err != nil {
-       panic(err)
+       helpers.Error(s, http.StatusInternalServerError, err.Error())
     }
 
     err = repository.InsertSaloon(connection.DBConnections, saloon)
     if err != nil {
-       panic(err)
+       helpers.Error(s, http.StatusInternalServerError, err.Error())
     }
 
-    s.JSON(http.StatusOK, saloon)
+    helpers.Success(s, http.StatusCreated, "Saloon created successfully", gin.H{})	
 }
 
 func UpdateSaloon(s *gin.Context) {
@@ -80,22 +80,20 @@ func UpdateSaloon(s *gin.Context) {
 
    err := s.BindJSON(&saloon)
    if err != nil {
-       s.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+       helpers.Error(s, http.StatusBadRequest, "Invalid saloon ID")
        return
    }
 
    saloon.ID = id
 
-
    err = repository.UpdateSaloon(connection.DBConnections, saloon)
    if err != nil {
-       s.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+       helpers.Error(s, http.StatusInternalServerError, err.Error())
        return
    }
 
-   s.JSON(http.StatusOK, saloon)
+   helpers.Success(s, http.StatusOK, "Saloon updated successfully", gin.H{})
 }
-
 
 
 func DeleteSaloon(s *gin.Context) {
@@ -105,24 +103,24 @@ func DeleteSaloon(s *gin.Context) {
     saloon.ID = id
     err := repository.DeleteSaloon(connection.DBConnections, saloon)
     if err != nil {
-       panic(err)
+       helpers.Error(s, http.StatusBadRequest, err.Error())
     }
 
-    s.JSON(http.StatusOK, saloon)
+    helpers.Success(s, http.StatusOK, "Saloon deleted successfully", gin.H{})
 }
 
 func GetSaloonById(s *gin.Context) {
 	id, err := strconv.Atoi(s.Param("id"))
 	if err != nil {
-		s.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		helpers.Error(s, http.StatusBadRequest, "invalid saloon id")
 		return
 	}
 
-	saloon, err := repository.GetSaloonById(connection.DBConnections, id)
+	data, err := repository.GetSaloonById(connection.DBConnections, id)
 	if err != nil {
-		s.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		helpers.Error(s, http.StatusInternalServerError, "failed to get saloon")
 		return
 	}
 
-	s.JSON(http.StatusOK, saloon)
+	helpers.Success(s, http.StatusOK, "Success get saloon", data)
 }

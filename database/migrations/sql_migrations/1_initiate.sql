@@ -14,8 +14,20 @@ CREATE TABLE customer (
     status        VARCHAR(256)
 );
 
+CREATE TABLE user_activation (
+    id UUID PRIMARY KEY,
+    user_id UUID,
+    token TEXT,
+    expired_at TIMESTAMP
+);
+
 CREATE TABLE admin (
     admin_id   UUID NOT NULL PRIMARY KEY,
+    user_id    UUID REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE doctor (
+    doctor_id   UUID NOT NULL PRIMARY KEY,
     user_id    UUID REFERENCES users(id) ON DELETE SET NULL
 );
 

@@ -13,7 +13,7 @@ var (
 )
 
 func Initiator() {
-	err := godotenv.Load("config/.env")
+	err := godotenv.Load(".env")
 	if err != nil {
 		panic(err)
 	}
