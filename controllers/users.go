@@ -7,18 +7,17 @@ import (
 	"seasaloon-backend-go/helpers"
 	"seasaloon-backend-go/repository"
 	"strconv"
-
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
 type LoginRequest struct {
-	Username string `json:"username" binding:"required"`
+	Email string `json:"email" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
 
 type RegisterRequest struct {
-	Username string `json:"username" binding:"required"`
+	Email string `json:"email" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
 
@@ -31,14 +30,13 @@ func Register(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		token, err := repository.RegisterUser(db, req.Username, req.Password)
+		token, err := repository.RegisterUser(db, req.Email, req.Password)
 		if err != nil {
 			helpers.Error(c, http.StatusInternalServerError, err.Error())
 			return
 		}
 
-		activationLink := "http://localhost:8080/activate?token=" + token
-
+		activationLink := "http://localhost:8080/api/activate?token=" + token
 		helpers.Success(c, http.StatusCreated, "User registered successfully", gin.H{
 			"activation_link": activationLink,
 		})
@@ -53,13 +51,32 @@ func RegisterAdmin(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		err := repository.RegisterAdmin(db, req.Username, req.Password)
+		err := repository.RegisterAdmin(db, req.Email, req.Password)
 		if err != nil {
 			helpers.Error(c, http.StatusInternalServerError, err.Error())
 			return
 		}
 
 	helpers.Success(c, http.StatusCreated, "Admin registered successfully", gin.H{})	
+	}
+}
+
+func RegisterDoctor(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req RegisterRequest
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			helpers.Error(c, http.StatusBadRequest, "invalid request")
+			return
+		}
+
+		err := repository.RegisterDoctor(db, req.Email, req.Password)
+		if err != nil {
+			helpers.Error(c, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+	helpers.Success(c, http.StatusCreated, "Doctor registered successfully", gin.H{})	
 	}
 }
 
@@ -72,7 +89,7 @@ func Login(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		user, token, err := repository.LoginUser(db, req.Username, req.Password)
+		user, token, err := repository.LoginUser(db, req.Email, req.Password)
 		if err != nil {
 			helpers.Error(c, http.StatusUnauthorized, err.Error())
 			return
@@ -89,11 +106,14 @@ func ActivateUser(db *sql.DB) gin.HandlerFunc {
 		token := c.Query("token")
 
 		var userID uuid.UUID
-
+		var email string
+		
 		err := db.QueryRow(`
-			SELECT user_id FROM user_activation
-			WHERE token = $1 AND expired_at > NOW()
-		`, token).Scan(&userID)
+			SELECT ua.user_id, u.email
+			FROM user_activation ua
+			JOIN users u ON ua.user_id = u.id
+			WHERE ua.token = $1 AND ua.expired_at > NOW()
+		`, token).Scan(&userID, &email)
 
 		if err != nil {
 			helpers.Error(c, 400, "invalid or expired token")
@@ -111,8 +131,8 @@ func ActivateUser(db *sql.DB) gin.HandlerFunc {
 		_, _ = db.Exec(`
 			DELETE FROM user_activation WHERE user_id = $1
 		`, userID)
-
-		helpers.Success[any](c, 200, "account activated", nil)
+		go helpers.SendVerifiedEmail(email)
+		c.File("helpers/email/verified.html")
 	}
 }
 
@@ -155,4 +175,27 @@ func GetAllCustomer(c *gin.Context) {
 	}
 
 	helpers.Success(c, http.StatusOK, "success get customers", customers)
+}
+
+func GetAllDoctor(c *gin.Context) {
+	limitStr := c.DefaultQuery("limit", "10")
+	offsetStr := c.DefaultQuery("offset", "0")
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		limit = 10
+	}
+
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil {
+		offset = 0
+	}
+
+	doctors, err := repository.GetAllDoctors(connection.DBConnections, limit, offset)
+	if err != nil {
+		helpers.Error(c, 500, "failed to get doctors")
+		return
+	}
+
+	helpers.Success(c, http.StatusOK, "success get doctors", doctors)
 }

@@ -18,7 +18,7 @@ func GetAllReservation(db *sql.DB, limit, offset int) (result []structs.Reservat
         SELECT 
             r.id, r.services, r.start, r.done, 
             r.is_done, r.is_cancel, r.rating, r.feedback, 
-            c.customer_id, c.status, u.id, u.username,
+            c.customer_id, c.status, u.id, u.email,
             u.role, u.is_active, s.id, s.name, s.location, s.open, s.close
         FROM reservation r
         JOIN customer c ON r.customer_id = c.customer_id
@@ -44,7 +44,7 @@ func GetAllReservation(db *sql.DB, limit, offset int) (result []structs.Reservat
 		err = rows.Scan(
 			&reservation.ID, &servicesData, &reservation.Start, &reservation.Done, &reservation.IsDone,
 			&reservation.IsCancel, &reservation.Rating, &reservation.Feedback, &customer.CustomerID, &customer.Status, &user.ID,
-			&user.Username, &user.Role, &user.IsActive, &saloon.ID, &saloon.Name, &saloon.Location, &saloon.Open, &saloon.Close,
+			&user.Email, &user.Role, &user.IsActive, &saloon.ID, &saloon.Name, &saloon.Location, &saloon.Open, &saloon.Close,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("row scan error: %w", err)
@@ -73,7 +73,7 @@ func GetAllReservationByCustomerID(db *sql.DB, customerID string, limit, offset 
         SELECT 
 			r.id, r.services, r.start, r.done, 
 			r.is_done, r.is_cancel, r.rating, r.feedback, 
-			c.customer_id, c.status , u.id AS user_id, u.username,
+			c.customer_id, c.status , u.id AS user_id, u.email,
 			u.role, u.is_actives.id, s.name, s.location, s.open, s.close
 		FROM reservation r
 		JOIN customer c ON r.customer_id = c.customer_id
@@ -99,7 +99,7 @@ func GetAllReservationByCustomerID(db *sql.DB, customerID string, limit, offset 
 		err = rows.Scan(
 			&reservation.ID, &servicesData, &reservation.Start, &reservation.Done, &reservation.IsDone,
 			&reservation.IsCancel, &reservation.Rating, &reservation.Feedback, &customer.CustomerID, &customer.Status, &user.ID,
-			&user.Username, &user.Role, &user.IsActive, &saloon.ID, &saloon.Name, &saloon.Location, &saloon.Open, &saloon.Close,
+			&user.Email, &user.Role, &user.IsActive, &saloon.ID, &saloon.Name, &saloon.Location, &saloon.Open, &saloon.Close,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("row scan error: %w", err)
