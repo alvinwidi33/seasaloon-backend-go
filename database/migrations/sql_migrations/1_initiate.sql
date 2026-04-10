@@ -2,7 +2,7 @@
 -- +migrate StatementBegin
 CREATE TABLE users (
     id            UUID NOT NULL PRIMARY KEY,
-    username      VARCHAR(256),
+    email         VARCHAR(256),
     password      VARCHAR(256),
     role          VARCHAR(256),
     is_active     BOOLEAN
@@ -18,7 +18,7 @@ CREATE TABLE user_activation (
     id UUID PRIMARY KEY,
     user_id UUID,
     token TEXT,
-    expired_at TIMESTAMP
+    expired_at TIMESTAMPTZ
 );
 
 CREATE TABLE admin (

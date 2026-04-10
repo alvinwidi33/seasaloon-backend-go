@@ -4,7 +4,7 @@ import "github.com/google/uuid"
 
 type Users struct {
 	ID       uuid.UUID `json:"id"`
-	Username string    `json:"username"`
+	Email    string    `json:"email"`
 	Password string    `json:"-"`
 	Role     string    `json:"role"`
 	IsActive bool      `json:"is_active"`

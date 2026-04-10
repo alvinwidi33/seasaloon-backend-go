@@ -10,16 +10,17 @@ import (
 //go:embed sql_migrations/*.sql
 var dbMigrations embed.FS
 
-func Initiator(dbParam *sql.DB) {
+func Initiator(dbParam *sql.DB) error {
 	migrations := &migrate.EmbedFileSystemMigrationSource{
 		FileSystem: dbMigrations,
 		Root:       "sql_migrations",
 	}
 
-	n, errs := migrate.Exec(dbParam, "postgres", migrations, migrate.Up)
-	if errs != nil {
-		panic(errs)
+	n, err := migrate.Exec(dbParam, "postgres", migrations, migrate.Up)
+	if err != nil {
+		return err
 	}
 
 	fmt.Println("Migration success, applied", n, "migrations!")
+	return nil
 }

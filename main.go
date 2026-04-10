@@ -49,6 +49,8 @@ func main() {
 		protected.GET("/users", middleware.AuthMiddleware("Admin"), controllers.GetAllCustomer)
 		protected.PATCH("/users/:id/member", middleware.AuthMiddleware("Admin"), controllers.SetCustomerMembership)
         protected.POST("/admin", middleware.AuthMiddleware("Admin"), controllers.RegisterAdmin(DB))
+		protected.POST("/doctor", middleware.AuthMiddleware("Admin"), controllers.RegisterDoctor(DB))
+		protected.GET("/doctor", middleware.AuthMiddleware("Admin","Doctor"), controllers.GetAllDoctor)
         protected.GET("/admin/saloon", middleware.AuthMiddleware("Admin"), controllers.GetAllSaloon)
 	}
 	router.POST("/api/login", controllers.Login(DB))
