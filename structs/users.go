@@ -7,6 +7,7 @@ type Users struct {
 	Email    string    `json:"email"`
 	Password string    `json:"-"`
 	Role     string    `json:"role"`
+	Avatar   []byte    `json:"avatar"`
 	IsActive bool      `json:"is_active"`
 }
 

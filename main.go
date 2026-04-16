@@ -35,11 +35,11 @@ func main() {
 	{
 		protected.GET("/reservation", middleware.AuthMiddleware("Customer", "Admin", "Doctor"), controllers.GetAllReservation)
 		protected.GET("/reservation/:id", middleware.AuthMiddleware("Customer", "Admin", "Doctor"), controllers.GetAllReservationByCustomerID)
-
+		protected.PATCH("/user-profile/:id", middleware.AuthMiddleware("Customer", "Doctor", "Admin"), controllers.SetProfile)
 		protected.POST("/reservation", middleware.AuthMiddleware("Customer"), controllers.InsertReservation)
 		protected.PATCH("/reservation/:id/cancel", middleware.AuthMiddleware("Customer"), controllers.CancelReservation)
 		protected.PATCH("/reservation/:id/done", middleware.AuthMiddleware("Customer"), controllers.DoneReservation)
-
+		protected.GET("/me", middleware.AuthMiddleware("Admin","Customer","Doctor"), controllers.GetMe(DB))
 		protected.GET("/saloon/customer", middleware.AuthMiddleware("Customer"), controllers.GetAllSaloonCustomers)
 		protected.POST("/saloon", middleware.AuthMiddleware("Admin"), controllers.InsertSaloon)
 		protected.PUT("/saloon/:id", middleware.AuthMiddleware("Admin"), controllers.UpdateSaloon)
