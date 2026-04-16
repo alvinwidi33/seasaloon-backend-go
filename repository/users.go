@@ -338,3 +338,29 @@ func GetAllDoctors(db *sql.DB, limit, offset int) (result []structs.Doctor, err 
 
 	return
 }
+func UpdateProfile(db *sql.DB, userID uuid.UUID, avatar []byte) error {
+	var existing []byte
+	err := db.QueryRow(`SELECT avatar FROM users WHERE id = $1`, userID).Scan(&existing)
+	if err != nil {
+		return errors.New("failed to fetch user: " + err.Error())
+	}
+	_, err = db.Exec(`
+		UPDATE users SET avatar = $1 WHERE id = $2
+	`, avatar, userID)
+	if err != nil {
+		return errors.New("failed to update profile: " + err.Error())
+	}
+
+	return nil
+}
+func GetUserByID(db *sql.DB, userID uuid.UUID) (structs.Users, error) {
+    var user structs.Users
+    err := db.QueryRow(`
+        SELECT id, email, role, avatar, is_active 
+        FROM users WHERE id = $1
+    `, userID).Scan(&user.ID, &user.Email, &user.Role, &user.Avatar, &user.IsActive)
+    if err != nil {
+        return structs.Users{}, errors.New("failed to fetch user: " + err.Error())
+    }
+    return user, nil
+}

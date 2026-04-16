@@ -1,12 +1,14 @@
 package controllers
 
 import (
+	"bytes"
 	"database/sql"
 	"net/http"
 	connection "seasaloon-backend-go/database/connections"
 	"seasaloon-backend-go/helpers"
 	"seasaloon-backend-go/repository"
 	"strconv"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -198,4 +200,47 @@ func GetAllDoctor(c *gin.Context) {
 	}
 
 	helpers.Success(c, http.StatusOK, "success get doctors", doctors)
+}
+
+func SetProfile(c *gin.Context) {
+	id := c.Param("id")
+
+	userID, err := uuid.Parse(id)
+	if err != nil {
+		helpers.Error(c, 400, "invalid user id")
+		return
+	}
+	file, _, err := c.Request.FormFile("avatar")
+		if err != nil {
+			helpers.Error(c, http.StatusBadRequest, "avatar is required")
+			return
+		}
+		defer file.Close()
+
+		buf := new(bytes.Buffer)
+		buf.ReadFrom(file)
+		avatarBytes := buf.Bytes()
+	err = repository.UpdateProfile(connection.DBConnections, userID, avatarBytes)
+	if err != nil {
+		helpers.Error(c, 500, "failed to update profile")
+		return
+	}
+
+	helpers.Success[any](c, 200, "profile updated", nil)
+}
+func GetMe(db *sql.DB) gin.HandlerFunc {
+    return func(c *gin.Context) {
+        userID, exists := c.Get("user_id")
+        if !exists {
+            helpers.Error(c, http.StatusUnauthorized, "unauthorized")
+            return
+        }
+
+        user, err := repository.GetUserByID(db, userID.(uuid.UUID))
+        if err != nil {
+            helpers.Error(c, http.StatusInternalServerError, err.Error())
+            return
+        }
+        helpers.Success(c, http.StatusOK, "success", user)
+    }
 }
