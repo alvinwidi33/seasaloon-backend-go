@@ -32,7 +32,7 @@ docker logs backend-app
  
 ## 📡 API Endpoints
  
-Base URL: `http://<your-server>:8081`
+Base URL: `http://apin-devops.my.id:8081`
  
 ### 🔐 Auth
  
