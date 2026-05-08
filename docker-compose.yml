@@ -1,6 +1,6 @@
 services:
   app:
-    image: username/seasaloon-backend:latest
+    image: alvinwidi33/seasaloon-backend:latest
     container_name: backend-app
     restart: always
     ports:
