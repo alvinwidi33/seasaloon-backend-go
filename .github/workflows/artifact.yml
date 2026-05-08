@@ -1,0 +1,38 @@
+name: Deploy Golang Backend
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USERNAME }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            cd /root/backend-golang
+
+            git pull origin main
+
+            cat > .env << EOF
+            PGHOST=${{ secrets.PGHOST }}
+            PGPORT=${{ secrets.PGPORT }}
+            PGUSER=${{ secrets.PGUSER }}
+            PGPASSWORD=${{ secrets.PGPASSWORD }}
+            PGDATABASE=${{ secrets.PGDATABASE }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            SMTP_HOST=${{ secrets.SMTP_HOST }}
+            SMTP_PORT=${{ secrets.SMTP_PORT }}
+            EMAIL_HOST_USER=${{ secrets.EMAIL_HOST_USER }}
+            EMAIL_HOST_PASSWORD=${{ secrets.EMAIL_HOST_PASSWORD }}
+            EOF
+
+            docker compose down
+            docker compose up -d --build --remove-orphans

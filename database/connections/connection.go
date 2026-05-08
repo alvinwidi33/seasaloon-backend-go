@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	_ "github.com/lib/pq"
-	"github.com/joho/godotenv"
 )
 
 var (
@@ -13,10 +12,10 @@ var (
 )
 
 func Initiator() {
-	err := godotenv.Load(".env")
-	if err != nil {
-		panic(err)
-	}
+	// err := godotenv.Load(".env")
+	// if err != nil {
+	// 	panic(err)
+	// }
 
 	psqlInfo := fmt.Sprintf(`host=%s port=%s user=%s password=%s dbname=%s sslmode=disable`,
 		os.Getenv("PGHOST"),
@@ -25,7 +24,7 @@ func Initiator() {
 		os.Getenv("PGPASSWORD"),
 		os.Getenv("PGDATABASE"),
 	)
-
+	var err error
 	DBConnections, err = sql.Open("postgres", psqlInfo)
 	if err != nil {
 		panic(fmt.Sprintf("Error opening database: %v", err))
