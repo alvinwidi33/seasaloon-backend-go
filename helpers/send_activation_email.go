@@ -15,7 +15,7 @@ func SendActivationEmail(toEmail, token string) error {
 	smtpPort := os.Getenv("SMTP_PORT")
 
 	activationLink := fmt.Sprintf(
-		"http://localhost:8080/api/activate?token=%s",
+		"http://localhost:8081/api/activate?token=%s",
 		token,
 	)
 

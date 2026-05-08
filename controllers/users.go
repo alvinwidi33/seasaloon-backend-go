@@ -38,7 +38,7 @@ func Register(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		activationLink := "http://localhost:8080/api/activate?token=" + token
+		activationLink := "http://localhost:8081/api/activate?token=" + token
 		helpers.Success(c, http.StatusCreated, "User registered successfully", gin.H{
 			"activation_link": activationLink,
 		})
