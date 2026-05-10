@@ -112,7 +112,8 @@ This project uses **GitHub Actions** with `appleboy/ssh-action` to auto-deploy o
 2. Pull latest Docker image
 3. Restart containers via `docker compose up -d --remove-orphans`
 ---
- 
+ <img width="1906" height="1009" alt="image" src="https://github.com/user-attachments/assets/6bd5e7a7-1563-4adb-9325-5b312f0e6ece" />
+
 ## 📁 Project Structure
  
 ```
